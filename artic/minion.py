@@ -99,6 +99,22 @@ def run(parser, args):
     ## find the primer scheme, reference sequence and confirm scheme version
     bed, ref, _ = get_scheme(args.scheme, args.scheme_directory, args.scheme_version)
 
+    ## get the region length from the primers used (use this as a parameter for longshot)
+    # TODO: Longshot doesn't currently work with regions parameter in current format
+    start = ""
+    end = ""
+    with open(bed,'r') as primer_file:
+        line_number = len(primer_file.readlines())
+        line_count = 0
+        for line in primer_file:
+            if line_count == 0:
+                line = line.split("\t")
+                start = line[1]
+            if line_count == line_number - 1:
+                end = line[2]
+            line_count += 1
+    region = (start, end)
+
     ## if in strict mode, validate the primer scheme
     if args.strict:
         checkScheme = "artic-tools validate_scheme %s" % (bed)
@@ -192,6 +208,7 @@ def run(parser, args):
     if args.medaka and not args.no_longshot:
         cmds.append("bgzip -f %s.merged.vcf" % (args.sample))
         cmds.append("tabix -f -p vcf %s.merged.vcf.gz" % (args.sample))
+        #region_name = "NC_045512.2:" + region[0] + "-" + region[1]
         cmds.append("longshot -P 0 -F -A --no_haps --bam %s.primertrimmed.rg.sorted.bam --ref %s --out %s.merged.vcf --potential_variants %s.merged.vcf.gz" % (args.sample, ref, args.sample, args.sample))
 
     ## set up some name holder vars for ease
@@ -211,10 +228,21 @@ def run(parser, args):
 
     # 9) get the depth of coverage for each readgroup, create a coverage mask and plots, and add failed variants to the coverage mask (artic_mask must be run before bcftools consensus)
     cmds.append("artic_make_depth_mask --store-rg-depths %s %s.primertrimmed.rg.sorted.bam %s.coverage_mask.txt" % (ref, args.sample, args.sample))
-    cmds.append("artic_mask %s %s.coverage_mask.txt %s.fail.vcf %s.preconsensus.fasta" % (ref, args.sample, args.sample, args.sample))
+    # add failed variants to mask
+    cmds.append("vcf2bed < %s.fail.vcf > %s.fail.bed" % (args.sample, args.sample))
+    if os.path.isfile("%s.fail.bed" % (args.sample)) and os.stat("%s.fail.bed" % (args.sample)).st_size > 0:
+        cmds.append('''awk -F "\t" 'OFS="\t" {print $1, $2, $3 > ("%s.fail.formatted.bed")}' %s.fail.bed''' % (args.sample, args.sample))
+        cmds.append("cat %s.coverage_mask.txt %s.fail.formatted.bed > %s.coverage_failed_mask.bed" % (args.sample, args.sample, args.sample)) 
+        #cmds.append("cat %s.coverage_mask.txt %s.fail.formatted.bed | bedtools sort > %s.coverage_failed_mask.bed" % (args.sample, args.sample, args.sample))d 
+    else:
+        cmds.append("mv %s.coverage_mask.txt %s.coverage_failed_mask.bed" % (args.sample, args.sample))
+    cmds.append("bedtools sort -i %s.coverage_failed_mask.bed > %s.coverage_failed_mask.sorted.bed" % (args.sample, args.sample))
+    cmds.append("bedtools merge -i %s.coverage_failed_mask.sorted.bed" % (args.sample))
+    #cmds.append("artic_mask %s %s.coverage_mask.txt %s.fail.vcf %s.preconsensus.fasta" % (ref, args.sample, args.sample, args.sample))
 
     # 10) generate the consensus sequence
-    cmds.append("bcftools consensus -f %s.preconsensus.fasta %s.gz -m %s.coverage_mask.txt -o %s.consensus.fasta" % (args.sample, vcf_file, args.sample, args.sample))
+    cmds.append("bcftools consensus -f %s %s.gz -m %s.coverage_failed_mask.sorted.bed -o %s.consensus.fasta" % (ref, vcf_file, args.sample, args.sample))
+    #cmds.append("bcftools consensus -f %s.preconsensus.fasta %s.gz -m %s.coverage_mask.txt -o %s.consensus.fasta" % (args.sample, vcf_file, args.sample, args.sample))
 
     # 11) apply the header to the consensus sequence and run alignment against the reference sequence
     fasta_header = "%s/ARTIC/%s" % (args.sample, method)
