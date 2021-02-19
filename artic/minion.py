@@ -100,20 +100,20 @@ def run(parser, args):
     bed, ref, _ = get_scheme(args.scheme, args.scheme_directory, args.scheme_version)
 
     ## get the region length from the primers used (use this as a parameter for longshot)
-    # TODO: Longshot doesn't currently work with regions parameter in current format
-    start = ""
-    end = ""
     with open(bed,'r') as primer_file:
         line_number = len(primer_file.readlines())
+    
+    with open(bed, 'r') as primer_file:    
         line_count = 0
         for line in primer_file:
             if line_count == 0:
                 line = line.split("\t")
                 start = line[1]
-            if line_count == line_number - 1:
+            if line_count == (line_number - 1):
+                line = line.split("\t")
                 end = line[2]
             line_count += 1
-    region = (start, end)
+        region = (start, end)
 
     ## if in strict mode, validate the primer scheme
     if args.strict:
