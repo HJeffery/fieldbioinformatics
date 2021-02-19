@@ -208,8 +208,8 @@ def run(parser, args):
     if args.medaka and not args.no_longshot:
         cmds.append("bgzip -f %s.merged.vcf" % (args.sample))
         cmds.append("tabix -f -p vcf %s.merged.vcf.gz" % (args.sample))
-        #region_name = "NC_045512.2:" + region[0] + "-" + region[1]
-        cmds.append("longshot -P 0 -F -A --no_haps --bam %s.primertrimmed.rg.sorted.bam --ref %s --out %s.merged.vcf --potential_variants %s.merged.vcf.gz" % (args.sample, ref, args.sample, args.sample))
+        region_name = "NC_045512.2:" + region[0] + "-" + region[1]
+        cmds.append("longshot -P 0 -F -A --region %s --no_haps --bam %s.primertrimmed.rg.sorted.bam --ref %s --out %s.merged.vcf --potential_variants %s.merged.vcf.gz" % (region_name, args.sample, ref, args.sample, args.sample))
 
     ## set up some name holder vars for ease
     if args.medaka:
