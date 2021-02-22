@@ -238,10 +238,10 @@ def run(parser, args):
         cmds.append("mv %s.coverage_mask.txt %s.coverage_failed_mask.bed" % (args.sample, args.sample))
     cmds.append("bedtools sort -i %s.coverage_failed_mask.bed > %s.coverage_failed_mask.sorted.bed" % (args.sample, args.sample))
     cmds.append("bedtools merge -i %s.coverage_failed_mask.sorted.bed" % (args.sample))
-    #cmds.append("artic_mask %s %s.coverage_mask.txt %s.fail.vcf %s.preconsensus.fasta" % (ref, args.sample, args.sample, args.sample))
+    cmds.append("artic_mask %s %s.coverage_failed_mask.sorted.bed %s.fail.vcf %s.preconsensus.fasta" % (ref, args.sample, args.sample, args.sample))
 
     # 10) generate the consensus sequence
-    cmds.append("bcftools consensus -f %s %s.gz -m %s.coverage_failed_mask.sorted.bed -o %s.consensus.fasta" % (ref, vcf_file, args.sample, args.sample))
+    cmds.append("bcftools consensus -f %s.preconsensus.fasta %s.gz -m %s.coverage_failed_mask.sorted.bed -o %s.consensus.fasta" % (args.sample, vcf_file, args.sample, args.sample))
     #cmds.append("bcftools consensus -f %s.preconsensus.fasta %s.gz -m %s.coverage_mask.txt -o %s.consensus.fasta" % (args.sample, vcf_file, args.sample, args.sample))
 
     # 11) apply the header to the consensus sequence and run alignment against the reference sequence
